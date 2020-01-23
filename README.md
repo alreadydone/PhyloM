@@ -14,7 +14,8 @@ The code for this part could be found under RL folder. We provided the **Keras**
 ```console
 foo@bar:~$ python PhyloR.py Options
 
-<span style="color:red"> Required: </span>
+Required:
+
 --nCells         Number of rows of input matrices (Number of cells)
 --nMuts          Number of columns of input matrices (Number of mutations)
 --fp             False positive rate
@@ -24,7 +25,8 @@ foo@bar:~$ python PhyloR.py Options
 --restore_from   Directory to restore the model and weights from
 --ms_dir         MS program directory
 
-<span style="color:red"> Optional: </span>
+Optional:
+
 --gamma          Cost function hyper-parameter
 ```
 
