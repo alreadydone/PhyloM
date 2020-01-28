@@ -1,34 +1,26 @@
 #/usr/bin/python3
 
+# from __future__ import absolute_import, division, print_function, unicode_literals
 
-# import tensorflow as tf
-# from tensorflow import keras
-from __future__ import absolute_import, division, print_function, unicode_literals
-import numpy as np
-from tqdm import tqdm
-import itertools
-import matplotlib.pyplot as plt
-from time import time
 
 import tensorflow as tf
 from keras.models import Model, load_model
-from keras.layers import Input, Embedding, BatchNormalization, Reshape, Conv1D, Activation, add, Lambda, Layer, LSTM, LSTMCell, Add, Concatenate, multiply, Dense, Subtract
+from keras.layers import Input
 from keras.optimizers import Adam
-from keras.losses import mean_squared_error
-from keras.initializers import glorot_uniform
+# from keras.losses import mean_squared_error
+# from keras.initializers import glorot_uniform
 from keras import backend as K
-from keras.utils.vis_utils import plot_model
+# from keras.utils.vis_utils import plot_model
 from keras.models import model_from_json
 from keras.utils import CustomObjectScope
 
+import numpy as np
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from config import get_config, print_config
 from dataset import DataSet
 from attention import AttentionLayer
-from tensorflow.random import categorical
-from tensorflow.contrib.distributions import Categorical
-
-
 from encoder import encoder
 from decoder import decoder
 from utils import *
@@ -45,6 +37,7 @@ if __name__ == "__main__":
     K.tensorflow_backend._get_available_gpus()
     K.clear_session()
 
+    ########################### Training mode ###########################
     if not config.inference_mode:
     ########################### Inputs ###########################
         input_data = Input(shape = (config.nCells * config.nMuts, config.input_dimension), name = 'main_input')
@@ -65,9 +58,10 @@ if __name__ == "__main__":
         cost_layer = Cost(poss, config, name = 'Cost_layer')
         cost_v = cost_layer(input_data)
 
-        reward_baseline_layer = StopGrad(name = 'stop_gradient') #critic_predictions,
+        reward_baseline_layer = StopGrad(name = 'stop_gradient')
         reward_baseline = reward_baseline_layer([critic_predictions, cost_v])
 
+        ########################### Models ###########################
         AdamOpt_actor = Adam(lr = 0.001, beta_1 = 0.9, beta_2 = 0.99, amsgrad=False)  
         AdamOpt_critic = Adam(lr = 0.001, beta_1 = 0.9, beta_2 = 0.99, amsgrad=False)
 
@@ -80,7 +74,7 @@ if __name__ == "__main__":
 
         print_config()
 
-    
+        ########################### Dataset ###########################
         dataset = DataSet(config)
 
         fn = [float(line.rstrip('\n')) for line in open(config.input_dir_n + '/fn_r.txt')]
@@ -97,10 +91,8 @@ if __name__ == "__main__":
         act_loss = []
         crc_loss = []
 
-        st = time()
-        for i in tqdm(range(config.starting_num, config.nb_epoch)): # epoch i
-
-
+        ########################### Training ###########################
+        for i in tqdm(range(config.starting_num, config.nb_epoch)):
             actor_loss = model_actor.train_on_batch([dataset.train_batch(i, fp, fn, l), f_input], target_actor)
             critic_loss = model_critic.train_on_batch(dataset.train_batch(i, fp, fn, l), target_critic)
             act_loss.append(actor_loss)
@@ -123,7 +115,8 @@ if __name__ == "__main__":
                 model_actor.save_weights(config.save_to + "/actor.h5")
                 print("Saved actor to disk")
 
-        print("time:", time() - st)
+
+        ########################### Trainig loss plot ###########################
         f, axes = plt.subplots(2, 1, figsize=(10, 10))
         plt.subplots_adjust(hspace = 0.35)
 
@@ -138,13 +131,10 @@ if __name__ == "__main__":
         axes[1].set(xlabel = 'batch' , ylabel = 'loss')
         axes[1].legend(['critic training'], loc='upper left')
 
-
-
         plt.savefig('{}.png'.format('loss_{nCells}x{nMuts}'.format(nCells = config.nCells, nMuts = config.nMuts)))
         plt.close(f)
 
-
-
+    ########################### Inference mode ###########################
     else:
 
         with CustomObjectScope({'Simple': Simple, 'Decode': Decode, 'StopGrad' : StopGrad, 'Cost' : Cost, 'AttentionLayer': AttentionLayer}):

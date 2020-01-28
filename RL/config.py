@@ -23,7 +23,7 @@ net_arg.add_argument('--hidden_dim', type=int, default=2, help='actor LSTM num_n
 # Data
 data_arg = add_argument_group('Data')
 data_arg.add_argument('--batch_size', type=int, default= 128, help='batch size')
-data_arg.add_argument('--input_dimension', type=int, default=1, help='city dimension')
+data_arg.add_argument('--input_dimension', type=int, default=4, help='city dimension')
 data_arg.add_argument('--nCells', type=int, default=10, help='number of cells')
 data_arg.add_argument('--nMuts', type=int, default=7, help='number of mutations')
 data_arg.add_argument('--input_dir_n', type=str, help='noisy matrices directory')
@@ -68,7 +68,7 @@ def print_config():
     print('\n')
     print('Network Config:')
     print('* Restored model:',config.restore_model)
-    print('* Actor hidden_dim (embed / num neurons):',config.hidden_dim)
+    print('* Actor hidden_dim:',config.hidden_dim*config.input_dimension)
     # print('* Actor tan clipping:',config.C)
     print('\n')
     if config.inference_mode==False:
@@ -78,5 +78,6 @@ def print_config():
         # print('* Actor learning rate (init,decay_step,decay_rate):',config.lr1_start,config.lr1_decay_step,config.lr1_decay_rate)
     else:
         print('Testing Config:')
+        print('Number of test matrices:', config.nTestMats)
     # print('* Summary writer log dir:',config.log_dir)
     print('\n')

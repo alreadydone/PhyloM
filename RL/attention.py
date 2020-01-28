@@ -56,7 +56,7 @@ class AttentionLayer(Layer):
         e_i = K.softmax(e_i)
         return e_i, [e_i]
 
-    def context_step(self, encoder_out_seq, ei , states, verbose=None):
+    def context_step(self, encoder_out_seq, ei , states):
         c_i = K.sum(encoder_out_seq * K.expand_dims(ei, -1), axis=1)
         return c_i, [c_i]
 
@@ -69,13 +69,13 @@ class AttentionLayer(Layer):
         fake_state = K.tile(fake_state, [1, hidden_size])  # <= (batch_size, latent_dim
         return fake_state
 
-    def call(self, inputs, verbose=None):
+    def call(self, inputs):
         assert type(inputs) == list
         encoder_out_seq, decoder_out_seq = inputs
         fake_state_c = self.create_inital_state(encoder_out_seq, encoder_out_seq.shape[-1])
         fake_state_e = self.create_inital_state(encoder_out_seq, encoder_out_seq.shape[1])
-        e_outputs, e_outputs_ = self.energy_step(encoder_out_seq, decoder_out_seq, [fake_state_e], verbose=True)
-        c_outputs, c_outputs_ = self.context_step(encoder_out_seq, e_outputs, [fake_state_c], verbose=True)
+        e_outputs, e_outputs_ = self.energy_step(encoder_out_seq, decoder_out_seq, [fake_state_e])
+        c_outputs, c_outputs_ = self.context_step(encoder_out_seq, e_outputs, [fake_state_c])
         return [e_outputs, c_outputs] 
 
     def compute_output_shape(self, input_shape):
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     input2 = Input(shape = (25, 4), name = 'input2')
 
     attn_lyr = AttentionLayer(name = 'attention_layer')
-    attn_out, attn_stat= attn_lyr([input1, input2], verbose = True)
+    attn_out, attn_stat= attn_lyr([input1, input2])
 
 
     model = Model(inputs = [input1, input2], outputs = [attn_out, attn_stat])

@@ -31,7 +31,7 @@ def decoder(encoded_input, f, n_hidden, config):
     i = first_input_
     for step in range(config.nCells * config.nMuts):
         output = lstm(i)
-        attn_out, attn_stat = attn_lyr([encoded_input, output], verbose = True)
+        attn_out, attn_stat = attn_lyr([encoded_input, output])
         i, position, log_soft1 = Layer2([encoded_input, attn_out])
         positions.append(position)
         log_softmax.append(log_soft1)
