@@ -4,7 +4,7 @@
 You can get the code for different parts of this project using the following command.
 
 ```console
-git clone https://github.com/MHEAAA/PhyloM.git
+git clone https://github.com/mhaqir/PhyloM.git
 ```
 
 
