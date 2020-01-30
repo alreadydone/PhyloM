@@ -4,12 +4,12 @@
 You can get the code for different parts of this project using the following command.
 
 ```console
-git clone https://github.com/mhaqir/PhyloM.git
+git clone https://github.com/algo-cancer/PhyloM.git
 ```
 
 
 # Noise Elimination
-The code for this part could be found under RL folder. We provided the **Keras** weights for 10x10 size matrices under folder RL/Model. Using the following command a model based on the specified number of cells and mutations will be compiled, and provided weights will be imported to the model. The program will generate a number of evaluation instances and provide the solution it can find.
+The code for this part could be found under Noise_Elimination folder. We provided the **Keras** weights for 10x10 size matrices under folder Noise_Elimination/Model. Using the following command a model based on the specified number of cells and mutations will be compiled, and provided weights will be imported to the model. The program will generate a number of evaluation instances and provide the solution it can find.
 
 ```console
 foo@bar:~$ python PhyloR.py Options
@@ -31,10 +31,10 @@ Optional:
 ```
 
 # Noise Inference
-The code for this part has been provided under NE folder.
+The code for this part has been provided under Noise_Inference folder.
 
 # Branching Inference
-The code for this part is placed under BI folder.
+The code for this part is placed under Branching_Inference folder.
 
 ## System configs
 All the experiments in this work are performed using **Carbonate**, a computer cluster at Indiana University. We used deep learning (DL) nodes in Carbonate.
