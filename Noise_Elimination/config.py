@@ -25,16 +25,12 @@ data_arg = add_argument_group('Data')
 data_arg.add_argument('--batch_size', type=int, default= 128, help='batch size')
 data_arg.add_argument('--input_dimension', type=int, default=4, help='city dimension')
 data_arg.add_argument('--nCells', type=int, default=10, help='number of cells')
-data_arg.add_argument('--nMuts', type=int, default=7, help='number of mutations')
-data_arg.add_argument('--input_dir_n', type=str, help='noisy matrices directory')
-data_arg.add_argument('--input_dir_p', type=str,  help='perfect matrices directory')
+data_arg.add_argument('--nMuts', type=int, default=10, help='number of mutations')
 data_arg.add_argument('--output_dir', type=str,  help='output matrices directory')
-data_arg.add_argument('--table_dir', type=str,  help='output table directory')
-data_arg.add_argument('--nTrain', type=int, default=10000, help='number of train instances')
 data_arg.add_argument('--nTestMats', type=int, default=100, help='number of test instances')
-data_arg.add_argument('--fp', type=float, default=0.05, help='False positive rate')
-data_arg.add_argument('--fn', type=float, default=0.0001, help='False negative rate')
-data_arg.add_argument('--betta', type=float, default=0.04, help='hyperparameter for adjusting NLL')
+data_arg.add_argument('--alpha', type=float, default=0.0001, help='False positive rate')
+data_arg.add_argument('--beta', type=float, default=0.02, help='False negative rate')
+data_arg.add_argument('--gamma', type=float, default=0.04, help='hyperparameter in the cost function')
 
 # Training / test parameters
 train_arg = add_argument_group('Training')
@@ -45,7 +41,6 @@ misc_arg = add_argument_group('User options')
 
 misc_arg.add_argument('--inference_mode', type=str2bool, default=True, help='switch to inference mode when model is trained') 
 misc_arg.add_argument('--restore_model', type=str2bool, default=True, help='whether or not model is retrieved')
-misc_arg.add_argument('--active_search', type=str2bool, default=True, help='active search using a pre-trained model')
 
 misc_arg.add_argument('--save_to', type=str, default='model', help='saver sub directory')
 misc_arg.add_argument('--restore_from', type=str, default='model', help='loader sub directory')  ###

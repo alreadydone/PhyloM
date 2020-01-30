@@ -81,7 +81,7 @@ def cost(input_, positions, config):
         N00_NLL = tf.multiply(tf.expand_dims(fp_com, axis = 1), N00)
         N11_NLL = tf.multiply(tf.expand_dims(fn_com, axis = 1), N11)
 
-        NLL = tf.scalar_mul(config.betta, tf.add_n([NLL_N10_N01, N00_NLL, N11_NLL ]))            
+        NLL = tf.scalar_mul(config.gamma, tf.add_n([NLL_N10_N01, N00_NLL, N11_NLL ]))            
 
 
         m1 = tf.multiply(tf.squeeze(per_matrix, axis = 2), tf.cast(pos_mask_cum1, tf.float32))

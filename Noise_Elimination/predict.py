@@ -37,8 +37,8 @@ def solve(model_actor, config, n_hidden, matrices):
     fp_fn = np.zeros((nMats, config.nCells, config.nMuts), dtype = np.float32)
 
     for k in range(np.shape(matrices_p_t)[0]):
-        fp_fn[k, matrices_n_t[k,:,:] == 1] = config.fp
-        fp_fn[k, matrices_n_t[k,:,:] == 0] = config.fn
+        fp_fn[k, matrices_n_t[k,:,:] == 1] = config.alpha
+        fp_fn[k, matrices_n_t[k,:,:] == 0] = config.beta
         
         N01_o_ = np.sum(matrices_n_t[k,:,:] - matrices_p_t[k,:,:] == -1) 
         N10_o_ = np.sum(matrices_p_t[k,:,:] - matrices_n_t[k,:,:] == -1)
@@ -50,10 +50,10 @@ def solve(model_actor, config, n_hidden, matrices):
         
         N00_o[k, 0] = N00_o_
         N11_o[k, 0] = N11_o_
-        N00_NLL_o[k, 0] = N00_o_*np.log(1/(1-config.fn))
-        N11_NLL_o[k, 0] = N11_o_*np.log(1/(1-config.fp))
-        N01_NLL_o[k, 0] = N01_o_*np.log(1/config.fn)
-        N10_NLL_o[k, 0] = N10_o_*np.log(1/config.fp)
+        N00_NLL_o[k, 0] = N00_o_*np.log(1/(1-config.beta))
+        N11_NLL_o[k, 0] = N11_o_*np.log(1/(1-config.alpha))
+        N01_NLL_o[k, 0] = N01_o_*np.log(1/config.beta)
+        N10_NLL_o[k, 0] = N10_o_*np.log(1/config.alpha)
         NLL_o[k, 0] = np.sum([N00_NLL_o[k, 0], N11_NLL_o[k, 0], N01_NLL_o[k, 0], N10_NLL_o[k, 0]])
         
              
@@ -149,7 +149,7 @@ def solve(model_actor, config, n_hidden, matrices):
             N00_NLL = tf.multiply(tf.expand_dims(fp_com, axis = 1), N00)
             N11_NLL = tf.multiply(tf.expand_dims(fn_com, axis = 1), N11)
 
-            NLL = tf.scalar_mul(config.betta, tf.add_n([NLL_N10_N01, N00_NLL, N11_NLL ]))            
+            NLL = tf.scalar_mul(config.gamma, tf.add_n([NLL_N10_N01, N00_NLL, N11_NLL ]))            
             NLL_rl = K.eval(tf.squeeze(NLL, axis =1))
 
             

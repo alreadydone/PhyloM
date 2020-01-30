@@ -50,6 +50,26 @@ def data(nMats, nCells, nMuts, ms_dir, alpha, betta):
         matrices_n.append(matrix.reshape(nCells, nMuts))
         matrices_p.append(matrices[i,:,:])
     return matrices_p, matrices_n
-    
-    
+
+
+# Read a batch for training procedure
+def train_batch(config, matrices, l, batch_num):
+    matrices_n = np.zeros((config.batch_size, config.nCells, config.nMuts), dtype = np.int8)
+    fp_fn = np.zeros((config.batch_size, config.nCells, config.nMuts), dtype = np.float32)
+    k = 0
+    for i in range(batch_num * config.batch_size, (batch_num + 1) * config.batch_size):
+        matrices_n[k,:,:] = matrices[i,:,:]
+        fp_fn[k, matrices_n[k,:,:] == 1] = config.alpha
+        fp_fn[k, matrices_n[k,:,:] == 0] = config.beta
+        k += 1
+        
+    a = np.expand_dims(matrices_n.reshape(-1, config.nCells*config.nMuts),2)
+    b = np.expand_dims(fp_fn.reshape(-1, config.nCells*config.nMuts),2)
+    x = np.tile(l,(config.batch_size,1,1))
+    c = np.squeeze(np.concatenate([x,b,a], axis = 2))
+    d = np.asarray([np.take(c[i,:,:],np.random.permutation(c[i,:,:].shape[0]),axis=0,out=c[i,:,:]) for i in range(np.shape(c)[0])])
+    del matrices_n
+    return d
+
+
     
