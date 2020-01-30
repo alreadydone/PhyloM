@@ -1,0 +1,11 @@
+train.py starts here
+Input is read x.shape=(10, 16), y.shape=(10, 2)
+ysum = [5 5]
+number of models:1
+makeModelsTime = 0.28698253631591797
+fit start for DenseDrOut_2_100_tanh_0.9_False_True_model__0
+fit finished
+fitTime = 0.5771529674530029
+The history is saved in trainingHistory_DenseDrOut_2_100_tanh_0.9_False_True_model__0_make_dataset(4, 4, 5)_None_1580361656.0515516
+model is saved to ./Models/tempModel_fullModel_2_None_DenseDrOut_2_100_tanh_0.9_False_True_model__0_1580361656.0515516.h5
+csvFile is saved to ./Outputs/output_1580361656.100868.csv

@@ -1,0 +1,2 @@
+,batchSize,bestTrainAcc,bestValAcc,datasetName,finalTrainAcc,finalValAcc,fitTime,histFileName,modelFileName,saveTime
+0,,0.6666666865348816,1.0,"make_dataset(3, 3, 2)",0.6666666865348816,1.0,0.8446757793426514,"trainingHistory_DenseDrOut_2_100_tanh_0.9_False_True_model__0_make_dataset(3, 3, 2)_None_1580355588.7013037",./Models/tempModel_fullModel_3_None_DenseDrOut_2_100_tanh_0.9_False_True_model__0_1580355588.7013037.h5,0.07290101051330566
