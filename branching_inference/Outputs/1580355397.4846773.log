@@ -1,3 +1,0 @@
-train.py starts here
-Input is read x.shape=(4, 9), y.shape=(4, 2)
-ysum = [2 2]
