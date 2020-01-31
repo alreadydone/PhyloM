@@ -22,6 +22,9 @@ See https://github.com/algo-cancer/PhyloM/blob/master/Noise_Elimination/README.m
 
 
 
-## System configs
+# System configs
 All the experiments in this work are performed using **Carbonate**, a computer cluster at Indiana University. We used deep learning (DL) nodes in Carbonate.
 These nodes features 12 GPU-accelerated Lenovo ThinkSystem SD530 , each equipped with two Intel Xeon Gold 6126 12-core CPUs, two NVIDIA GPU accelerators (eight with Tesla P100s; four with Tesla V100s), and 192 GB of RAM. A Red Hat Enterprise 7.x is running on these nodes and we used Python 3.7.3 :: Anaconda, Inc., Tensorflow 1.13.0, and Keras 2.2.0.
+
+# Contact
+Please email us at <esadeqia@iu.edu> and <mhaghir@iu.edu> for any questions.
