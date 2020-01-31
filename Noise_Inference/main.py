@@ -1,13 +1,22 @@
-from imports import *
 
-from util import isViolated
-from util import count3gametes
+
+from config import get_config, print_config
+config, _ = get_config()
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+import os
+import tensorflow as tf
+from tensorflow import keras
+
 
 from dataset import DataSet 
 
 from KerasModels import addDenseLayerClassification
+import subprocess
 
-import pandas as pd
 
 
 class LossAccHistory(keras.callbacks.Callback):
@@ -28,24 +37,21 @@ class LossAccHistory(keras.callbacks.Callback):
 
 
 def main():
-    config, _ = get_config()
     print_config()
-
     dataset = DataSet(config)
 
-    if not os.path.isfile(config.h5_dir + "/" + config.h5_filename_train):
-        data = dataset.Cat_Shuf(train = True)
+    data = dataset.data(train = True)
 
-        dataset.saveDataSet(data[0], data[1], config.h5_filename_train)
+    dataset.saveDataSet(data[0], data[1], 'Train_{}'.format(config.nTrain))
 
-    if not os.path.isfile(config.h5_dir + "/" + config.h5_filename_test):
-        data = dataset.Cat_Shuf(train = False)
+    data = dataset.data(train = False)
 
-        dataset.saveDataSet(data[0], data[1], config.h5_filename_test)
+    dataset.saveDataSet(data[0], data[1], 'Test_{}'.format(config.nTest))
+    print('Datasets were saved to disk!')
 
-    train_matrices, train_labels = dataset.loadDataSet(config.h5_filename_train)
-    test_matrices, test_labels = dataset.loadDataSet(config.h5_filename_test)
-
+    train_matrices, train_labels = dataset.loadDataSet('Train_{}'.format(config.nTrain))
+    test_matrices, test_labels = dataset.loadDataSet('Test_{}'.format(config.nTest))
+    print('Datasets were loaded from disk!')
     models = []
     addDenseLayerClassification(models, inputDim=(config.nCells, config.nMuts), nameSuffix="sg",
                                 hiddenSize=100,
@@ -57,12 +63,10 @@ def main():
                                 useSoftmax=False)
 
     for name, model in models:
-
-        plot_model(model, to_file= config.output_dir + '/{}_plot.png'.format(name), show_shapes=True, show_layer_names=True)
         history = LossAccHistory(test_matrices, test_labels)
-        model.fit(train_matrices, train_labels, epochs = config.nb_epoch, verbose = 0, callbacks = [history])
+        model.fit(train_matrices, train_labels, epochs = config.nb_epoch, verbose = 1, callbacks = [history])
 
-        df = pd.DataFrame(index = ['epoch_{}'.format(e) for e in range(nE)], \
+        df = pd.DataFrame(index = ['epoch_{}'.format(e) for e in range(config.nb_epoch)], \
             columns = ['train_acc', 'test_acc', 'train_loss', 'test_loss'])
 
         df['train_acc'] = history.train_acc
