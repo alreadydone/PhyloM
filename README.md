@@ -6,7 +6,7 @@ You can get the code for different parts of this project using the following com
 ```console
 git clone https://github.com/algo-cancer/PhyloM.git
 ```
-The list of packages and their version installed in our system for running these codes is provided in **packages.txt** file.
+The list of packages and their version installed in our system for running these codes is provided in the **packages.txt** file.
 For data construction, the ms program is required from https://uchicago.app.box.com/s/l3e5uf13tikfjm7e1il1eujitlsjdx13. This program should be compiled based on its own instruction.
 
 # Branching Inference
