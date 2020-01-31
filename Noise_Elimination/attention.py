@@ -11,7 +11,7 @@ from keras.initializers import glorot_uniform
 from keras.utils.vis_utils import plot_model
 
 from config import get_config, print_config
-from dataset import DataSet
+# from dataset import DataSet
 import matplotlib.pyplot as plt
 from keras import backend as K
 

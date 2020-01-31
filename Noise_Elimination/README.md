@@ -1,6 +1,6 @@
 
 # Training and Evaluation
-Training and evaluation can be performed using the following command. To see the examples of using the arguments, please refer to the bottom of the page.
+Data construction, training, and evaluation can be performed using the **main.py** file. Using the following command the list of tunable arguments for running this file can be found. To see the examples of using the arguments, please refer to the bottom of the page.
 
 ```console
 foo@bar:~$ python main.py --help
@@ -55,14 +55,14 @@ User options:
 ## Training example
 An example of how to run training is as follows.
 ```console
-foo@bar:~$ python main.py --inference_mode=False --nb_epochs=10 --batch_size=128 --nCells=5 --nMuts=5 --save_to=out --ms_dir=msdir
+foo@bar:~$ python main.py --inference_mode=False --nb_epoch=10 --batch_size=128 --nCells=10 --nMuts=10 --save_to=out --ms_dir=msdir
 ```
 
 ## Evaluation example
  Using the following command a model based on the specified number of cells and mutations will be compiled, and the stored weights will be imported to the model. The program will simulate a number of evaluation instances and provide the solution it can find. An example of running the evaluation is as follows.
 
 ```console
-foo@bar:~$ python main.py --inference_mode=True --nTestMats=10 --batch_size=128 --nCells=5 --nMuts=5 --restore_from=out --ms_dir=msdir --output_dir=out1
+foo@bar:~$ python main.py --inference_mode=True --nTestMats=10 --batch_size=128 --nCells=10 --nMuts=10 --restore_from=out --ms_dir=msdir --output_dir=out1
 ```
 ## Reproducibility
 We provided our weights for trained model on 10x10 size matrices under folder Noise_Elimination/Model. For reproducing the results, these weights can be used in the evaluation phase.

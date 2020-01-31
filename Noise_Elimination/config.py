@@ -62,7 +62,7 @@ def print_config():
     # print('* Starting batch number:', config.starting_num)
     print('\n')
     print('Network Config:')
-    print('* Restored model:',config.restore_model)
+    # print('* Restored model:',config.restore_model)
     print('* Actor hidden_dim:',config.hidden_dim*config.input_dimension)
     # print('* Actor tan clipping:',config.C)
     print('\n')
