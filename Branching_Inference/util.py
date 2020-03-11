@@ -109,6 +109,65 @@ def permute(m):
     colPermu = np.random.permutation(m.shape[1])
     return m[rowPermu, :][:, colPermu]
 
+def rowSort(m):
+  return np.array(sorted(m, key=lambda r : [sum(r), r.tolist()]))
+
+
+def colShuffle(m):
+    assert len(m.shape) == 2
+    colPermu = np.random.permutation(m.shape[1])
+    return m[:, colPermu]
+
+def make_dataset(nCells, nMuts, n):  # TODO: the weights of rows might be bias
+
+    X = np.zeros((2 * n, nCells, nMuts), dtype=np.int8)
+    for i in range(n):
+        res = True
+        while res:
+            original1 = run_ms("temp.txt", nCells, nMuts)
+            res = is_linear(original1)
+        original1 = colShuffle(original1)
+        X[i] = rowSort(original1)
+
+    for i in range(n):
+        w = np.sum(X[i])
+        original2 = make_constrained_linear_input(nCells, nMuts, w)
+        original2 = colShuffle(original2)
+        X[i + n] = rowSort(original2)
+
+    y = np.array([1]*n + [0]*n)
+    #return X, y
+    print(X.shape)
+    X = np.expand_dims(X, axis=-1)
+    print(X.shape)
+    print('\n\n')
+    return np.expand_dims(X, axis=-1), y
+
+def add_col_conv_model(modelsList,
+                       inputDims,
+                       nameSuffix,
+                       hiddenSize,
+                       nLayers):
+  model = keras.Sequential()
+  #model.add(keras.layers.Lambda(lambda y: np.expand_dims(y, axis=-1)))#, input_shape=inputDims) # keras.backend.expand_dims(y, axis=-1), input_shape=inputDims))
+  model.add(keras.layers.Conv2D(
+      filters=hiddenSize, kernel_size=(1,3), strides=1,
+      padding='valid', activation='relu', input_shape=(None,None,1)))#inputDims+(1,)))
+  for i in range(nLayers):
+    model.add(keras.layers.Conv2D(
+      filters=hiddenSize, kernel_size=(1,3), strides=1,
+      padding='valid', activation='relu'))
+    model.add(keras.layers.BatchNormalization())
+    #model.add(keras.layers.Dropout(0.9))
+  model.add(keras.layers.GlobalMaxPooling2D())
+  model.add(keras.layers.Dense(1,activation='sigmoid'))
+#  model.add(keras.layers.Lambda(lambda y: tf.squeeze(y, axis=[-1])))
+  model.compile(optimizer = 'adam',
+                loss = "binary_crossentropy",#tf.keras.losses.BinaryCrossentropy(from_logits=True), # reduction='none')
+                metrics = ["binary_accuracy"]) #tf.keras.metrics.BinaryAccuracy()])
+ 
+  name = f"ColConv_{nLayers}_{hiddenSize}_{nameSuffix}_{len(modelsList)}"
+  modelsList.append((name, model))
 
 def run_ms(filename, nCell, nMut):
     cmd = f"{msAddress} {nCell} 1 -s {nMut} | tail -n {nCell} > {filename}"
@@ -122,27 +181,21 @@ def run_ms(filename, nCell, nMut):
 
 def make_dataset(nCells, nMuts, n):  # TODO: the weights of rows might be bias
 
-    X = np.zeros((2 * n, nCells * nMuts), dtype=np.int8)
+    X = np.zeros((2 * n, nCells, nMuts), dtype=np.int8)
     for i in range(n):
         res = True
         while res:
             original1 = run_ms("temp.txt", nCells, nMuts)
             res = is_linear(original1)
-
-        # linearInputUtil.sort_bin(original1)
-        original1 = permute(original1)
-        X[i] = original1.reshape(-1)
+        X[i] = rowSort(colShuffle(original1))
 
     for i in range(n):
         w = np.sum(X[i])
         original2 = make_constrained_linear_input(nCells, nMuts, w)
-        original2 = permute(original2)
-        # linearInputUtil.sort_bin(original2)
-        X[i + n] = original2.reshape(-1)
+        X[i + n] = rowSort(colShuffle(original2))
 
-    y = np.array([(1, 0)] * n + [(0, 1), ] * n)
+    y = np.array([1]*n + [0]*n)
     return X, y
-
 
 def is_linear(x):
   colOrder = np.argsort(-np.sum(x, axis=0), )
@@ -200,11 +253,12 @@ def add_noise(original_matrix, rates=None, ks=None):
     for i in sample_indices:
       assert noisy_matrix[x[i], y[i]] == val
       noisy_matrix[x[i], y[i]] = 1 - val
-  return noisy_matrix
+  return rowSort(colShuffle(noisy_matrix))
 
 
-def make_noisy(X_clean, n_cells, n_muts, rates=None, ks=None, ):
+def make_noisy(X_clean, rates=None, ks=None, ):
+  X_clean.squeeze(axis=-1)
   X = np.empty(X_clean.shape)
-  for row_ind in range(X_clean.shape[0]):
-    X[row_ind] = add_noise(X_clean[row_ind].reshape(n_cells, n_muts), rates=rates, ks=ks).reshape(n_cells * n_muts)
-  return X
+  for i in range(X_clean.shape[0]):
+    X[i] = add_noise(X_clean[i], rates=rates, ks=ks) #reshape(n_cells, n_muts), rates=rates, ks=ks).reshape(n_cells * n_muts)
+  return np.expand_dims(X, axis=-1)

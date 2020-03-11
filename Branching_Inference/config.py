@@ -9,7 +9,7 @@ import time
 projectDir = "."
 dataDir = "."
 tempDir = "."
-msAddress = "../../external/ms"
+msAddress = "../msdir/ms"
 historiesDir = None
 modelsDir = None
 h5dataDir = None
