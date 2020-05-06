@@ -6,8 +6,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from keras import backend as K
 import tensorflow as tf
 from keras.layers import Layer, multiply, Embedding
-from tensorflow.random import categorical
-from tensorflow.contrib.distributions import Categorical
+#from tensorflow.random import categorical
+categorical = tf.random.categorical
+import tensorflow_probability as tfp
+Categorical = tfp.distributions.Categorical
 from cost import cost
 from attention import AttentionLayer
 

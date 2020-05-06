@@ -35,6 +35,11 @@ def decoder(encoded_input, f, n_hidden, config):
         i, position, log_soft1 = Layer2([encoded_input, attn_out])
         positions.append(position)
         log_softmax.append(log_soft1)
+    #positions = positions * (config.nCells * config.nMuts)
+    #log_softmax = log_softmax * (config.nCells * config.nMuts)
+    #for step in range(config.nCells * config.nMuts):
+        #positions.append(position[0])
+        #log_softmax.append(log_softmax[0])
 
     poss = Concatenate(axis = -1, trainable = True, name = 'poss')(positions)
     log_s = Concatenate(axis = -1, trainable = True, name = 'log_s')(log_softmax)

@@ -13,6 +13,7 @@ from keras import backend as K
 from data import data
 seed(30)
 
+np.set_printoptions(threshold=np.inf)
 
 def solve(model_actor, config, n_hidden, matrices):
 
@@ -72,15 +73,46 @@ def solve(model_actor, config, n_hidden, matrices):
     output_ = np.zeros((nMats, 14), dtype = np.float64)
     f_input = np.random.randn(config.batch_size, n_hidden)
 
+    solved = 0
+    maxabs = 0.0
+
+    pos = np.zeros((config.batch_size,max_length),dtype=np.int32)
+    for idx in range(config.batch_size):
+        pos[idx] = np.random.permutation(max_length)
+    pos =  tf.convert_to_tensor(pos, dtype=tf.int32)
+
     for j in tqdm(range(nMats)): # num of examples
         start_t = time()
         input_batch = np.tile(d[j,:,:],(config.batch_size,1,1))
         
-        pos = model_actor.predict({'main_input': input_batch, 'f_input':f_input}, batch_size = config.batch_size)
+        _,logs = model_actor.predict({'main_input': input_batch, 'f_input':f_input}, batch_size = config.batch_size)
+        #print(pos)
+        #pos = np.zeros((config.batch_size,max_length),dtype=np.int32)
+        #for idx in range(config.batch_size):
+        #    pos[idx] = np.random.permutation(max_length)
+        
+        #print(pos)
+        ps = 1.0/np.exp(logs)
+        for ii in range(config.batch_size):
+            cnt = 0
+            for jj in range(max_length):
+                abs_ = abs(ps[ii][jj]+jj-max_length)
+                if abs_ > 0.1:
+                    print(jj)
+                    cnt += 1
+                if abs_ > maxabs:
+                    maxabs = abs_
+                    maxp = ps[ii][jj]
+                    maxps = ps[ii]
+            if cnt > 0:
+                print(ps[ii])
+        print(maxabs, maxp)
 
         inp_ = tf.convert_to_tensor(input_batch, dtype=tf.float32)
-        pos =  tf.convert_to_tensor(pos, dtype=tf.int32)
-
+        #pos =  tf.convert_to_tensor(pos, dtype=tf.int32)
+        
+        done_t = time()
+        print(done_t-start_t)
         
         r = tf.range(start = 0, limit = config.batch_size, delta = 1)
         r = tf.expand_dims(r ,1)
@@ -213,6 +245,7 @@ def solve(model_actor, config, n_hidden, matrices):
                 df.to_csv(config.output_dir + '/mrl_{}.txt'.format(j + 1), sep='\t') 
             i += 1  
         dur_t = time() - start_t
+        print(time()-done_t)
 
         output_[j,0] = fp_v
         output_[j,1] = fn_v 
@@ -225,7 +258,8 @@ def solve(model_actor, config, n_hidden, matrices):
         output_[j,8] = dur_t
         # output_[j,9] = s_m[j]
             
-            
+        if c_v_rl == 0: solved += 1
+        print(solved, "solved out of", i+1)    
             
     output_[:,9] = np.squeeze(N00_o)
     output_[:,10] = np.squeeze(N11_o)

@@ -4,6 +4,7 @@ from config import get_config, print_config
 config, _ = get_config()
 
 import tensorflow as tf
+#from tensorflow import keras
 from keras.models import Model, load_model
 from keras.layers import Input
 from keras.optimizers import Adam
@@ -53,7 +54,7 @@ def compile_models():
     model_critic.compile(loss = costum_loss1(critic_predictions, cost_v), optimizer = AdamOpt_critic)
 
 
-    model_actor = Model(inputs = [input_data, f], outputs = poss)  
+    model_actor = Model(inputs = [input_data, f], outputs = (poss, log_s))  
     model_actor.compile(loss = costum_loss(reward_baseline, log_s), optimizer = AdamOpt_actor)
     return model_critic, model_actor
 
