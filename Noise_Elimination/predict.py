@@ -5,6 +5,7 @@ import pandas as pd
 import tensorflow as tf
 from random import sample
 from random import seed
+from random import shuffle
 import copy
 from tqdm import tqdm
 from cost import count3gametes
@@ -14,6 +15,94 @@ from data import data
 seed(30)
 
 
+import numpy as np
+
+class Mat:
+    def __init__(self, m):
+        self.mat = m
+        self.nCells = m.shape[0]
+        self.nMuts = m.shape[1]
+        self.a01, self.a10, self.a11, self.aVio = tuple([np.zeros(self.nMuts*(self.nMuts-1)//2, dtype = np.int16) for i in range(4)])
+        i = 0
+        for c in range(self.nMuts):
+            for c1 in range(c):
+                for r in range(self.nCells):
+                    if m[r][c]:
+                        if m[r][c1]:
+                            self.a11[i] += 1
+                        else:
+                            self.a10[i] += 1
+                    elif m[r][c1]:
+                        self.a01[i] += 1
+                i += 1
+        self.aVio = self.a01 * self.a10 * self.a11
+        self.nVio = np.sum(self.aVio)
+
+    def update(self, pos):
+        r = pos // self.nMuts
+        c = pos % self.nMuts
+        i = c*(c-1)//2
+        a01, a10 = self.a01, self.a10
+
+        for c1 in range(self.nMuts):
+            if c1 == c:
+                a01, a10 = a10, a01
+            else:
+                old_vio = self.aVio[i]
+                if self.mat[r][c]:
+                    if self.mat[r][c1]:
+                        self.a11[i] -= 1
+                        a01[i] += 1
+                    else:
+                        a10[i] -= 1
+                elif self.mat[r][c1]:
+                    a01[i] -= 1
+                    self.a11[i] += 1
+                else:
+                    a10[i] += 1
+
+                self.aVio[i] = a01[i] * a10[i] * self.a11[i]
+                self.nVio += self.aVio[i] - old_vio
+
+            i += (1 if c1 < c else c1)
+        self.mat[r][c] = 1 - self.mat[r][c]
+
+"""
+m = np.array([[0,1,1],[1,0,0],[1,1,0]])
+cm = Mat(m)
+print(cm.nVio)
+cm.update(0,1)
+print(cm.nVio)
+print(cm.aVio)
+cm2 = Mat(cm.mat)
+print(cm2.nVio)
+print(cm2.aVio)
+print(cm.mat)
+print(cm.a01)
+print(cm2.a01)
+print(cm.a10)
+print(cm2.a10)
+print(cm.a11)
+print(cm2.a11)
+"""
+
+class MatFlipProb:
+    def __init__(self, m):
+        self.mat = m
+        self.flips = np.zeros(m.nCells * m.nMuts, dtype=bool)
+        self.new_flip = -1
+        self.log_prob = 0.0
+        self.nll = 0.0
+        self.f_0_to_1 = 0
+        self.f_1_to_0 = 0
+    def update(self):
+        self.flips = copy.copy(self.flips)
+        self.flips[self.new_flip] = True
+        self.mat = copy.deepcopy(self.mat)
+        self.mat.update(self.new_flip)
+        return self.mat.nVio
+
+
 def solve(model_actor, config, n_hidden, matrices):
 
     matrices_p_t = np.asarray(matrices[0])
@@ -21,20 +110,16 @@ def solve(model_actor, config, n_hidden, matrices):
     assert np.shape(matrices_n_t) == np.shape(matrices_p_t)
     nMats = np.shape(matrices_n_t)[0]
 
-
-    V_o = np.zeros((nMats, 1), dtype = np.float64)
-    f_1_to_0_o = np.zeros((nMats, 1), dtype = np.float64)
-    f_0_to_1_o = np.zeros((nMats, 1), dtype = np.float64)
-    N00_o = np.zeros((nMats, 1), dtype = np.float64)
-    N11_o = np.zeros((nMats, 1), dtype = np.float64)            
     N00_NLL_o = np.zeros((nMats, 1), dtype = np.float64)
     N11_NLL_o = np.zeros((nMats, 1), dtype = np.float64)
     N10_NLL_o = np.zeros((nMats, 1), dtype = np.float64)
     N01_NLL_o = np.zeros((nMats, 1), dtype = np.float64)
     NLL_o = np.zeros((nMats, 1), dtype = np.float64)
-    V_o = np.zeros((nMats, 1), dtype = np.float64)
-    
+    NLL_init = np.zeros(nMats, dtype = np.float64)
+
     fp_fn = np.zeros((nMats, config.nCells, config.nMuts), dtype = np.float32)
+
+    output_ = np.zeros((nMats, 15), dtype = np.float64)
 
     for k in range(np.shape(matrices_p_t)[0]):
         fp_fn[k, matrices_n_t[k,:,:] == 1] = config.alpha
@@ -45,195 +130,105 @@ def solve(model_actor, config, n_hidden, matrices):
         N11_o_ = np.sum(matrices_p_t[k,:,:] + matrices_n_t[k,:,:] == 2)
         N00_o_ = np.sum(matrices_p_t[k,:,:] - matrices_n_t[k,:,:] == 0) - N11_o_
         
-        f_1_to_0_o[k, 0] = N10_o_
-        f_0_to_1_o[k, 0] = N01_o_
-        
-        N00_o[k, 0] = N00_o_
-        N11_o[k, 0] = N11_o_
+        output_[k,4] = N01_o_ # f_0_to_1_o
+        output_[k,6] = N10_o_ # f_1_to_0_o
+        output_[k,9] = N00_o_
+        output_[k,10] = N11_o_
+
         N00_NLL_o[k, 0] = N00_o_*np.log(1/(1-config.beta))
         N11_NLL_o[k, 0] = N11_o_*np.log(1/(1-config.alpha))
         N01_NLL_o[k, 0] = N01_o_*np.log(1/config.beta)
         N10_NLL_o[k, 0] = N10_o_*np.log(1/config.alpha)
-        NLL_o[k, 0] = np.sum([N00_NLL_o[k, 0], N11_NLL_o[k, 0], N01_NLL_o[k, 0], N10_NLL_o[k, 0]])
-        
+        output_[k,2] = np.sum([N00_NLL_o[k, 0], N11_NLL_o[k, 0], N01_NLL_o[k, 0], N10_NLL_o[k, 0]])
+        NLL_init[k] = (N00_o_ + N01_o_) * np.log(1/(1-config.beta)) + (N11_o_ + N10_o_) * np.log(1/(1-config.alpha))
+        output_[k,8] = N01_o_ + N10_o_
              
     l = []
     for i in range(config.nCells):
         for j in range(config.nMuts):
             l.append([i,j])
     l = np.asarray(l)
+
     max_length = config.nCells * config.nMuts
     a = np.expand_dims(matrices_n_t.reshape(-1, max_length),2)
     b = np.expand_dims(fp_fn.reshape(-1, max_length),2)
     x = np.tile(l,(nMats,1,1))
     c = np.squeeze(np.concatenate([x,b,a], axis = 2))
-    d = np.asarray([np.take(c[i,:,:],np.random.permutation(c[i,:,:].shape[0]),axis=0,out=c[i,:,:]) for i in range(np.shape(c)[0])])
+    #d = np.asarray([np.take(c[i,:,:],np.random.permutation(c[i,:,:].shape[0]),axis=0,out=c[i,:,:]) for i in range(np.shape(c)[0])])
     
-    output_ = np.zeros((nMats, 14), dtype = np.float64)
     f_input = np.random.randn(config.batch_size, n_hidden)
+
+    NLL_change = (np.log(1/config.beta-1), np.log(1/config.alpha-1))
 
     for j in tqdm(range(nMats)): # num of examples
         start_t = time()
-        input_batch = np.tile(d[j,:,:],(config.batch_size,1,1))
-        
-        pos = model_actor.predict({'main_input': input_batch, 'f_input':f_input}, batch_size = config.batch_size)
 
-        inp_ = tf.convert_to_tensor(input_batch, dtype=tf.float32)
-        pos =  tf.convert_to_tensor(pos, dtype=tf.int32)
+        m = Mat(matrices_n_t[j])
+        q = [MatFlipProb(m)]
+        output_[j,12] = m.nVio # original number of violations, V_o
+        if m.nVio == 0: continue
+        input_batch = np.tile(c[j,:,:],(config.batch_size,1,1))
 
-        
-        r = tf.range(start = 0, limit = config.batch_size, delta = 1)
-        r = tf.expand_dims(r ,1)
-        r = tf.expand_dims(r ,2)
-        r3 = tf.cast(tf.ones([max_length , 1]) * tf.cast(r, tf.float32), tf.int32)
-        r4 = tf.squeeze(r, axis = 2)
-        i = 0
-        while i < int(max_length/10):   
+        best_nll = float("inf")
+        best_sol = None
+        # beam search, beam size = batch size
+        for depth in range(max_length//10):
+            print(len(q), ':')
+            logps = model_actor.predict({'main_input': input_batch, 'f_input':f_input}, batch_size = config.batch_size)
 
-            r5 = tf.expand_dims(tf.fill([config.batch_size], i), axis = 1)
-            u = tf.ones_like(r5)
-            r4_r5 = tf.concat([r4, r5], axis = 1)
+            temp_q = []
+            i = 0
+            for mfp_old in q:
+                #print(mfp_old.mat.nVio)
+                for l in range(max_length):
+                    mfp = copy.copy(mfp_old)
+                    mfp.new_flip = l
+                    mfp.log_prob += 1 #logps[i][l] #np.log(1/(max_length-depth))#logps[i][l]
+                    entry = mfp.mat.mat[l//mfp.mat.nMuts][l%mfp.mat.nMuts]
+                    mfp.nll += NLL_change[entry]
+                    if entry:
+                        mfp.f_1_to_0 += 1
+                    else:
+                        mfp.f_0_to_1 += 1
+                    temp_q.append(mfp)
+                i += 1
+            temp_q.sort(key = lambda x: x.log_prob, reverse = True)            
+            shuffle(temp_q)
 
-            pos_mask = tf.squeeze(tf.scatter_nd(indices = r4_r5, updates = u, shape = [config.batch_size, max_length, 1]), axis = 2)
+            q = []
+            i = 0
+            for mfp in temp_q:
+                if i >= config.batch_size:
+                    break
+                elif not mfp.flips[mfp.new_flip]:
+                    #print(mfp.mat.nVio, mfp.log_prob)
+                    if mfp.update():
+                        q.append(mfp)
+            #            print(mfp.mat.nVio, ' ', len(q))
+                        m = input_batch[i,:,3] = np.reshape(mfp.mat.mat,-1)
+                        input_batch[i,:,2] = np.where(m, config.alpha, config.beta)
+                        i += 1
+                    elif mfp.nll < best_nll: # no violation, solution found
+                        best_nll = mfp.nll
+                        best_sol = mfp
+            # print(len(q))
 
-            pos_mask_cum1 = tf.cumsum(pos_mask, reverse = True, exclusive = True, axis = 1)
-            pos_mask_cum2 = tf.cumsum(pos_mask, reverse = False, exclusive = False, axis = 1) # for calculating NLL
-
-            per_pos = tf.concat([r3, tf.expand_dims(pos, axis = 2)], axis = 2)
-
-            per_ = tf.gather_nd(inp_, indices = per_pos)
-    
-            per_matrix = per_[:,:,3:4]
-
-            # flipping the input
-            m1 = tf.multiply(tf.squeeze(per_matrix, axis = 2), tf.cast(pos_mask_cum1, tf.float32))
-            m1 = tf.subtract(tf.cast(pos_mask_cum1, tf.float32) , m1)
-            m2 = tf.multiply(tf.squeeze(per_matrix, axis = 2), tf.cast(pos_mask_cum2, tf.float32))
-            T_f = tf.add(m1, m2)
-
-            per_flipped = tf.concat([per_[:,:,0:3], tf.expand_dims(T_f, axis = 2)], axis = 2)
-            idx = tf.concat([r3, tf.cast(per_flipped[:,:,0:2], tf.int32)], axis = 2)
-            m_f = tf.scatter_nd(indices = tf.expand_dims(idx,2), updates = per_flipped[:,:,3:4], shape = tf.constant([config.batch_size, config.nCells, config.nMuts]))           
-            c_v = count3gametes(m_f, config) # cost for flipped matrix
-            V_rl = K.eval(c_v)
-            g = np.min(V_rl)
-            
-            # Calculating NLL
-            per_fp_fn = per_[:,:,2:3]
-            per_fp_fn_log = tf.log(1/per_fp_fn) # for N01 and N10
-            per_fp_fn_com = tf.subtract(tf.ones_like(per_fp_fn), per_fp_fn) # for N00 and N11
-            per_fp_fn_com_log = tf.log(1/per_fp_fn_com)
-
-            NLL_N10_N01 = tf.reduce_sum(tf.multiply(tf.squeeze(per_fp_fn_log, axis = 2), tf.cast(pos_mask_cum1, tf.float32)), axis = 1, keepdims = True)
-
-            per_matrix_mul_cum2 = tf.multiply(tf.squeeze(per_[:,:,3:4], axis = 2), tf.cast(pos_mask_cum2, tf.float32))
-            N11 = tf.reduce_sum(per_matrix_mul_cum2, axis = 1, keepdims = True)
-            N11_rl = K.eval(tf.squeeze(N11, axis = 1))
-            sum_mask_cum2 = tf.reduce_sum(tf.cast(pos_mask_cum2, tf.float32), axis = 1, keepdims = True )
-            N00 = tf.subtract(sum_mask_cum2, N11)
-            N00_rl = K.eval(tf.squeeze(N00, axis = 1))
-
-            sum_per_matrix = tf.reduce_sum(tf.squeeze(per_matrix, axis = 2) , axis = 1)
-            sum_per_fp =  tf.reduce_sum(tf.squeeze(tf.multiply(per_fp_fn, per_matrix) , axis = 2) , axis = 1)
-            fp = tf.divide(sum_per_fp, sum_per_matrix)
-            fp_r = K.eval(fp)
-
-            sum_per_fn = tf.subtract(tf.reduce_sum(tf.squeeze(per_fp_fn, axis = 2), axis = 1), sum_per_fp)
-            q = tf.cast(tf.tile(tf.constant([max_length]), tf.constant([config.batch_size])), tf.float32)
-            fn = tf.divide(sum_per_fn, tf.subtract(q, sum_per_matrix) )
-            fn_r = K.eval(fn)
-
-            fp_com = tf.log(1/tf.subtract(tf.cast(tf.tile(tf.constant([1]), tf.constant([config.batch_size])), tf.float32), fp))
-            fn_com = tf.log(1/tf.subtract(tf.cast(tf.tile(tf.constant([1]), tf.constant([config.batch_size])), tf.float32), fn))
-
-            N00_NLL = tf.multiply(tf.expand_dims(fp_com, axis = 1), N00)
-            N11_NLL = tf.multiply(tf.expand_dims(fn_com, axis = 1), N11)
-
-            NLL = tf.scalar_mul(config.gamma, tf.add_n([NLL_N10_N01, N00_NLL, N11_NLL ]))            
-            NLL_rl = K.eval(tf.squeeze(NLL, axis =1))
-
-            
-            g_w = np.where(V_rl == g)[0]
-            g_w_nll = np.argmin(NLL_rl[g_w])
-            gg = g_w[g_w_nll]    
-            
-            if g == 0:
-                c_v_rl = V_rl[gg]
-                m_rl = K.eval(m_f)[gg]                    
-                N10 = tf.reduce_sum(tf.multiply(tf.squeeze(per_matrix, axis = 2), tf.cast(pos_mask_cum1, tf.float32)), axis = 1, keepdims = True)
-                f_1_to_0_rl = K.eval(tf.squeeze(N10, axis = 1)[gg])
-                sum_mask_cum1 = tf.reduce_sum(tf.cast(pos_mask_cum1, tf.float32), axis = 1, keepdims = True )
-                N01 = tf.subtract(sum_mask_cum1, N10)
-                f_0_to_1_rl = K.eval(tf.squeeze(N01, axis = 1)[gg])
-                n_f = copy.deepcopy(i)
-                
-                # cost of original
-                idx = tf.concat([r3, tf.cast(inp_[:,:,0:2], tf.int32)], axis = 2)
-                m = tf.scatter_nd(indices = tf.expand_dims(idx,2), updates = inp_[:,:,3:4], shape = tf.constant([config.batch_size, config.nCells, config.nMuts]))
-                c_v_o = count3gametes(m, config)
-                c_n = K.eval(c_v_o[0])
-                fp_v = fp_r[gg]
-                fn_v = fn_r[gg]
-                c2 = copy.deepcopy(NLL_rl[gg])
-                df = pd.DataFrame(m_rl.astype(int) , index = ['cell' + str(k1) for k1 in range(np.shape(m_rl)[0])], \
-                                  columns = ['mut' + str(h1) for h1 in range(np.shape(m_rl)[1])])
-                df.index.rename('cellID/mutID', inplace=True)
-                df.to_csv(config.output_dir + '/mrl_{}.txt'.format(j + 1), sep='\t')
-                break
-                
-            c_t = tf.add(tf.squeeze(NLL, axis = 1), tf.cast(c_v, tf.float32))
-            
-            if i == 0:
-                c2 = copy.deepcopy(NLL_rl[gg])
-                c_v_rl = V_rl[gg]
-                n_f = copy.deepcopy(i)
-                f_0_to_1_rl = 0
-                f_1_to_0_rl = 0
-                m_rl = K.eval(m_f)[gg]
-                fp_v = fp_r[gg]
-                fn_v = fn_r[gg]
-            if c2 > NLL_rl[gg]:
-                c2 = copy.deepcopy(NLL_rl[gg])
-                c_v_rl = V_rl[gg]
-                n_f = copy.deepcopy(i)
-                f_0_to_1_rl = K.eval(tf.squeeze(N01, axis = 1)[gg])
-                f_1_to_0_rl = K.eval(tf.squeeze(N10, axis = 1)[gg])
-                m_rl = K.eval(m_f)[gg] 
-                fp_v = fp_r[gg]
-                fn_v = fn_r[gg]
-            if i == int(max_length/10) - 1:  
-                # cost of original
-                idx = tf.concat([r3, tf.cast(inp_[:,:,0:2], tf.int32)], axis = 2)
-                m = tf.scatter_nd(indices = tf.expand_dims(idx,2), updates = inp_[:,:,3:4], shape = tf.constant([config.batch_size, config.nCells, config.nMuts]))
-                c_v_o = count3gametes(m, config)
-                c_n = K.eval(c_v_o[0])
-                df = pd.DataFrame(m_rl.astype(int) , index = ['cell' + str(k1) for k1 in range(np.shape(m_rl)[0])], \
-                                  columns = ['mut' + str(h1) for h1 in range(np.shape(m_rl)[1])])
-                df.index.rename('cellID/mutID', inplace=True)
-                df.to_csv(config.output_dir + '/mrl_{}.txt'.format(j + 1), sep='\t') 
-            i += 1  
         dur_t = time() - start_t
+        print(j,'!\n')
 
-        output_[j,0] = fp_v
-        output_[j,1] = fn_v 
-        output_[j,2] = c2  # cost (NLL part)
-        output_[j,3] = c_v_rl  # cost (violation part)
-        output_[j,4] = c_n/2 # number of violations  for noisy matrix
-        output_[j,5] = n_f # total number of flips based on rl
-        output_[j,6] = f_0_to_1_rl
-        output_[j,7] = f_1_to_0_rl
-        output_[j,8] = dur_t
-        # output_[j,9] = s_m[j]
-            
-            
-            
-    output_[:,9] = np.squeeze(N00_o)
-    output_[:,10] = np.squeeze(N11_o)
-    output_[:,11] = np.squeeze(NLL_o)
-    output_[:,12] = np.squeeze(f_1_to_0_o)
-    output_[:,13] = np.squeeze(f_0_to_1_o)
+        output_[j,0] = dur_t
+        output_[j,1] = NLL_init[j] + best_nll
+        if best_sol is not None:
+            output_[j,3] = best_sol.f_0_to_1
+            output_[j,5] = best_sol.f_1_to_0
+        output_[j,7] = output_[j,3] + output_[j,5]
+
+    output_[:,11] = 0 # no violations after flipping according to search result
+    output_[:,13] = config.alpha # fp
+    output_[:,14] = config.beta # fn
     
     df = pd.DataFrame(output_, index = ["test" + str(k) for k in range(nMats)], \
-                     columns = ["fp", "fn","NLL_rl", "V_rl", "V_o", "n_f", "f_0_to_1_rl", "f_1_to_0_rl",\
-                                "time", "N00_o", "N11_o", "NLL_o", "f_1_to_0_o", "f_0_to_1_o"])
+                     columns = ["time", "NLL_rl", "NLL_o", "f_0_to_1_rl", "f_0_to_1_o", "f_1_to_0_rl", "f_1_to_0_o", \
+                                "n_f_rl", "n_f_o", "N00_o", "N11_o", "V_rl", "V_o", "fp", "fn"])
     df.to_csv(config.output_dir + '/test_{nCells}x{nMuts}.csv'.format(nCells = config.nCells, nMuts = config.nMuts), sep = ',')
+

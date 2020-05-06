@@ -4,11 +4,12 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from keras.models import Model
-from keras.layers import Input, Embedding, BatchNormalization, Reshape, Conv1D, Activation, add, Lambda, Layer, LSTM, Add, Concatenate, multiply, Dense, Subtract
+from keras.layers import Input, Embedding, BatchNormalization, Reshape, Conv1D, Activation, add, Lambda, Layer, LSTM, Add, Concatenate, multiply, Dense, Subtract, Softmax
 
 import tensorflow as tf
 from keras.initializers import glorot_uniform
 from keras import backend as K
+#from keras.activations import softmax
 
 from utils import Simple
 from attention import AttentionLayer
@@ -29,13 +30,22 @@ def decoder(encoded_input, f, n_hidden, config):
     Layer2 = Decode(config.batch_size, name = 'decode_layer') 
     attn_lyr = AttentionLayer(name = 'attention_layer')
     i = first_input_
-    for step in range(config.nCells * config.nMuts):
-        output = lstm(i)
-        attn_out, attn_stat = attn_lyr([encoded_input, output])
-        i, position, log_soft1 = Layer2([encoded_input, attn_out])
-        positions.append(position)
-        log_softmax.append(log_soft1)
 
-    poss = Concatenate(axis = -1, trainable = True, name = 'poss')(positions)
-    log_s = Concatenate(axis = -1, trainable = True, name = 'log_s')(log_softmax)
-    return poss, log_s
+    if config.inference_mode:
+        output = lstm(i)
+        attn_out, _ = attn_lyr([encoded_input, output])
+        # output log probabilities
+        return K.zeros((config.batch_size, config.nCells*config.nMuts), dtype='int32'), Lambda(K.log)((Softmax(axis = -1)(attn_out)))
+
+    else:
+        for step in range(config.nCells * config.nMuts):
+            output = lstm(i)
+            attn_out, _ = attn_lyr([encoded_input, output])
+
+            i, position, log_soft1 = Layer2([encoded_input, attn_out])
+            positions.append(position)
+            log_softmax.append(log_soft1)
+
+        poss = Concatenate(axis = -1, trainable = True, name = 'poss')(positions)
+        log_s = Concatenate(axis = -1, trainable = True, name = 'log_s')(log_softmax)
+        return poss, log_s
